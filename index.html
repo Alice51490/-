@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>川遊館プロジェクト～フィッシュフンターへの道～</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #e0f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+
+        button {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin: 10px;
+        }
+
+        #log, #catchLog {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .highlight {
+            color: green;
+            font-weight: bold;
+        }
+
+        #fishImage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.5s ease-out;
+            z-index: 1000;
+        }
+
+        #fishImage.show {
+            transform: translate(-50%, -50%) scale(1);
+            animation: pop 1s ease-in-out;
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            60% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        #fishingScene {
+            position: relative;
+            height: 150px;
+            margin-top: 30px;
+        }
+
+        .fish-shadow {
+            position: absolute;
+            width: 60px;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0.5;
+            animation: swim 3s infinite ease-in-out;
+        }
+
+        @keyframes swim {
+            0% { transform: translateX(-50%) translateY(0px); }
+            50% { transform: translateX(-50%) translateY(-20px); }
+            100% { transform: translateX(-50%) translateY(0px); }
+        }
+    </style>
+</head>
+<body>
+    <h1>川遊館プロジェクト～フィッシュフンターへの道～</h1>
+    <p>ブリを10匹釣り上げればクリア！</p>
+    <button id="fishButton">釣り開始！</button>
+
+    <div id="fishingScene" style="display:none;">
+	   <img src="hari.png" class="fish-shadow">
+    </div>
+
+    <div id="catchLog"></div>
+    <div id="log"></div>
+
+    <img id="fishImage" src="" alt="釣れた魚！" width="200">
+
+    <audio id="winSound" src="https://soundeffect-lab.info/sound/voice/mp3/human/human_voice_cheer_boy01.mp3" preload="auto"></audio>
+
+    <script>
+        let buriCount = 0;
+        let hiramasaCount = 0;
+        let kanpachiCount = 0;
+        let fishing = false;
+        let shaking = false;
+        let fishTimeout;
+        let loseStreak = 0;
+
+        const log = document.getElementById("log");
+        const catchLog = document.getElementById("catchLog");
+        const winSound = document.getElementById("winSound");
+        const fishImage = document.getElementById("fishImage");
+        const fishingScene = document.getElementById("fishingScene");
+
+        const fishImages = {
+            "ブリ": "buri.png",
+            "ヒラマサ": "masa.png",
+            "カンパチ": "pati.jpg"
+        };
+
+        const failMessages = [
+            "くっ…逃げられた…！",
+            "ああっ！惜しかった！",
+            "魚の方が一枚上手だったようだ…",
+            "目の前でスルリと逃げた…",
+            "なにっ…！？逃げられた！？"
+        ];
+
+        document.getElementById("fishButton").onclick = () => {
+            if (fishing) {
+                if (shaking) {
+                    clearTimeout(fishTimeout);
+                    shaking = false;
+                    fishingScene.style.display = "none";
+                    initiateDuel();
+                } else {
+                    logMessage("…まだ魚はかかっていない…");
+                }
+            } else {
+                clearLog();
+                startFishing();
+            }
+        };
+
+        function clearLog() {
+            log.textContent = "";
+        }
+
+        function updateCatchLog() {
+            catchLog.textContent = `🐟 ブリ: ${buriCount}匹\n🐠 ヒラマサ: ${hiramasaCount}匹\n🎣 カンパチ: ${kanpachiCount}匹`;
+        }
+
+        function resetCatch() {
+            buriCount = 0;
+            hiramasaCount = 0;
+            kanpachiCount = 0;
+            updateCatchLog();
+        }
+
+        function logMessage(message, highlight = false) {
+            const span = document.createElement("span");
+            span.textContent = message + "\n";
+            if (highlight) span.classList.add("highlight");
+            log.prepend(span);
+        }
+
+        function startFishing() {
+            logMessage("釣り糸を垂らした…");
+            fishing = true;
+            fishingScene.style.display = "block";
+            const waitTime = Math.random() * 10000 + 3000;
+            fishTimeout = setTimeout(() => {
+                shaking = true;
+                logMessage("釣り糸が震えている！クリックして対決だ！");
+                setTimeout(() => {
+                    if (shaking) {
+                        logMessage(randomFailMessage());
+                        fishing = false;
+                        shaking = false;
+                        fishingScene.style.display = "none";
+                    }
+                }, 5000);
+            }, waitTime);
+        }
+
+        function randomFailMessage() {
+            return failMessages[Math.floor(Math.random() * failMessages.length)];
+        }
+
+        function rollDice() {
+            return [1, 2, 3].map(() => Math.floor(Math.random() * 6) + 1);
+        }
+
+        function getPoints(dice) {
+            const counts = {};
+            for (const d of dice) counts[d] = (counts[d] || 0) + 1;
+            const values = Object.values(counts);
+            if (values.includes(3)) return dice[0] === 1 ? 25 : 20;
+            const sorted = [...dice].sort((a, b) => a - b);
+            if (JSON.stringify(sorted) === JSON.stringify([1, 2, 3])) return 0;
+            if (JSON.stringify(sorted) === JSON.stringify([4, 5, 6])) return 15;
+            return dice.reduce((a, b) => a + b);
+        }
+
+        function initiateDuel() {
+            logMessage("いざ勝負…！");
+            setTimeout(() => {
+                duel();
+            }, 1500);
+        }
+
+        function duel() {
+            const player = rollDice();
+            const fish = rollDice();
+            const playerPoints = getPoints(player);
+            const fishPoints = getPoints(fish);
+
+            logMessage(`プレイヤーの出目: ${player.join(", ")} → ${playerPoints}点`);
+            logMessage(`魚の出目: ${fish.join(", ")} → ${fishPoints}点`);
+
+            if (playerPoints > fishPoints) {
+                loseStreak = 0;
+                winSound.play();
+
+                const r = Math.random();
+                let fishName = "";
+                if (r < 0.2) {
+                    fishName = "ブリ";
+                    buriCount++;
+                } else if (r < 0.7) {
+                    fishName = "ヒラマサ";
+                    hiramasaCount++;
+                } else {
+                    fishName = "カンパチ";
+                    kanpachiCount++;
+                }
+
+                logMessage(`勝利！${fishName}を釣り上げた！`, true);
+                updateCatchLog();
+                showFishImage(fishName);
+
+                if (buriCount >= 10) {
+                    logMessage("🎉 おめでとう！君は真のフィッシュフンターだ！！", true);
+                    document.getElementById("fishButton").disabled = true;
+                    return;
+                }
+            } else {
+                loseStreak++;
+                logMessage(randomFailMessage());
+                if (loseStreak >= 5) {
+                    logMessage("禁断のチンチロデュエルの代償により…君は死んだ…。釣果はすべて失われた……", true);
+                    resetCatch();
+                    loseStreak = 0;
+                }
+            }
+
+            fishing = false;
+        }
+
+        function showFishImage(fishName) {
+            fishImage.src = fishImages[fishName];
+            fishImage.classList.add("show");
+            setTimeout(() => {
+                fishImage.classList.remove("show");
+            }, 2000);
+        }
+
+        updateCatchLog();
+    </script>
+</body>
+</html>
